@@ -431,42 +431,44 @@ void CAN_Format::Receive_CAN_message() {
 }
 // Receiving and interpreting data 
 double CAN_Format::Receive_current_torque(){
-//Reception Waiting Time Measurement
-  CAN_message_t received_frame;
-  unsigned long receive_start_time = micros();  // Reception Waiting Start Time
-  const unsigned long timeout = 100000;           // Changing unit from 100ms to 100,000us
-  int retry_count = 0;
-  const int max_retries = 100;
+    CAN_message_t received_frame;
+    bool message_received = false;
 
-  while (retry_count < max_retries) {
-      while (micros() - receive_start_time < timeout) {
-          if (can1.read(received_frame)) {
-              unsigned long receive_end_time = micros();
-              Serial.print("Torque PD Control - Response received! Receive time (us): ");
-              Serial.println(receive_end_time - receive_start_time);
+    // 최대 100번까지 시도
+    for (int retry = 0; retry < 100; retry++) {
+        if (can1.read(received_frame)) {
+            message_received = true;
+            Serial.println("CAN message received!");
 
-              // Received data interpretation
-              int current_value = ((received_frame.buf[4] & 0xF) << 8) | received_frame.buf[5];
-              double scaled_current = Receiving_scaling_value(current_value, Peak_torque, -Peak_torque, 12); 
+            MIT_CAN_Frame receiving_frame;
+            for (int i = 0; i < 8; i++) {
+                receiving_frame.frame_byte[i] = received_frame.buf[i];
+            }
 
-              int motor_error_flag = received_frame.buf[7];
-              if (motor_error_flag == 1) {
-                  MotorOff(driver_id);
-                  Serial.println("Error flag is 1, motor is turned off.");
-              } else {
-                  Serial.println("No error in CAN message.");
-                  received_torque_PD = scaled_current;
-              }
-          }
-      }
+            int current_value = ((received_frame.buf[4] & 0xF) << 8) | received_frame.buf[5];
+            double scaled_current = Receiving_scaling_value(current_value, Peak_torque, -Peak_torque, 12); 
 
-      Serial.println("Torque PD Control - Response timeout. Retrying...");
-      retry_count++;
-      receive_start_time = micros(); // Restart when timeout occured 
-  }
+            int motor_error_flag = receiving_frame.frame_byte[7];
 
-  Serial.println("Torque PD Control - Max retries reached. Returning default value.");
+            if (motor_error_flag == 1) {
+                MotorOff(driver_id);
+                Serial.println("Error flag is 1, motor is turned off.");
+                return 0.0;
+            } else {
+                Serial.println("No error in CAN message.");
+                return scaled_current;
+            }
+            break;  // 메시지를 수신했으므로 반복 종료
+        }
+    }
+
+    if (!message_received) {
+        Serial.println("Warning: No CAN message received after 100 attempts, returning default value.");
+        return 0.0;
+    }
+    return 0.0;
 }
+
 
 void CAN_Format::Torque_Control_PD(uint8_t driver_id, double Current_value) {
     CAN_message_t frame;

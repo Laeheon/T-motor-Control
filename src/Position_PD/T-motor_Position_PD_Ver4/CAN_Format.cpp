@@ -561,7 +561,7 @@ double CAN_Format::Receive_current_speed(){
 
 void CAN_Format::Position_Control_PD(uint8_t driver_id, double Current_value) {
     // Transmission starting time measurenet (us)
-    unsigned long send_start_us = micros();
+    // unsigned long send_start_us = micros();
 
     CAN_message_t frame;
     frame.id = driver_id;  
@@ -587,16 +587,15 @@ void CAN_Format::Position_Control_PD(uint8_t driver_id, double Current_value) {
     bool writeResult = can1.write(frame);
 
     // Transmission Completion Time Measurement (µs)
-    unsigned long send_end_us = micros();
-    unsigned long send_duration_us = send_end_us - send_start_us;
+  //  unsigned long send_end_us = micros();
+   // unsigned long send_duration_us = send_end_us - send_start_us;
 
     // Printing transmission time per 50 times 
-    static int send_count = 0;
-    send_count++;
-    if (send_count % 50 == 0) {
-        Serial.print("Torque PD Control - Send time (us): ");
-        Serial.println(send_duration_us);
-    }
+
+     
+     //   Serial.print("Torque PD Control - Send time (us): ");
+    //    Serial.println(send_duration_us);
+    
 
     if (writeResult) {
         Serial.println("Torque PD Control - Command sent successfully.");
